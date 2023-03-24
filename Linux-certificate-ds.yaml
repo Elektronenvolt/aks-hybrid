@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trusted-ca
+  namespace: kube-system
+data:
+  ca.crt: |+
+    -----BEGIN CERTIFICATE-----
+    <CERT in PEM format>
+    -----END CERTIFICATE-----
+    -----BEGIN CERTIFICATE-----
+    <CERT in PEM format>
+    -----END CERTIFICATE-----
+    ```
+    Add your certificates here - they should be specified in a single .crt file in PEM format.
+    It's important to make sure the certificates are added in the right order in a single .crt file. 
+    For example: <.leaf.crt>, <intermediate.crt>, <root.crt>.
+    cat [leaf].crt [intermediate].crt [Root].crt > [your single cert file].crt
+    ```
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: setup-script
+  namespace: kube-system
+data:
+  setup.sh: |
+    echo "$TRUSTED_CERT" > /etc/pki/ca-trust/source/anchors/ca.crt && update-ca-trust && systemctl restart containerd
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: kube-system
+  name: node-custom-setup
+  labels:
+    k8s-app: node-custom-setup
+spec:
+  selector:
+    matchLabels:
+      k8s-app: node-custom-setup
+  template:
+    metadata:
+      labels:
+        k8s-app: node-custom-setup
+    spec:
+      hostPID: true
+      hostNetwork: true
+      initContainers:
+      - name: init-node
+        command: ["nsenter"]
+        args: ["--mount=/proc/1/ns/mnt", "--", "sh", "-c", "$(SETUP_SCRIPT)"]
+        image: debian
+        env:
+        - name: TRUSTED_CERT
+          valueFrom:
+            configMapKeyRef:
+              name: trusted-ca
+              key: ca.crt
+        - name: SETUP_SCRIPT
+          valueFrom:
+            configMapKeyRef:
+              name: setup-script
+              key: setup.sh
+        securityContext:
+          privileged: true
+      containers:
+      - name: wait
+        image: k8s.gcr.io/pause:3.1
