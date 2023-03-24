@@ -11,12 +11,10 @@ data:
     -----BEGIN CERTIFICATE-----
     <CERT in PEM format>
     -----END CERTIFICATE-----
-    ```
-    Add your certificates here - they should be specified in a single .crt file in PEM format.
+    Replace section with your certificates - they should be specified in a single .crt file in PEM format.
     It's important to make sure the certificates are added in the right order in a single .crt file. 
     For example: <.leaf.crt>, <intermediate.crt>, <root.crt>.
     cat [leaf].crt [intermediate].crt [Root].crt > [your single cert file].crt
-    ```
 ---
 apiVersion: v1
 kind: ConfigMap
